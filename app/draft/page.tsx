@@ -210,6 +210,12 @@ await loadData();
     <main className="min-h-screen bg-slate-950 px-6 py-8 text-white">
       <div className="mx-auto max-w-7xl">
         <h1 className="text-4xl font-bold">Draft Room</h1>
+        <a
+       href="/"
+        className="mt-4 inline-block rounded-lg border border-slate-700 px-4 py-2 text-slate-200 hover:bg-slate-900"
+  >
+     ← Back to Home
+      </a>
     <div className="mt-4 rounded-lg border border-slate-800 bg-slate-900 p-4">
       <p className="text-lg font-bold">
         Pick #{currentPickNumber}

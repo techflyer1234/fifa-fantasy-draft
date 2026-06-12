@@ -95,6 +95,12 @@ export default function SetupPage() {
     <main className="min-h-screen bg-slate-950 px-6 py-10 text-white">
       <div className="mx-auto max-w-3xl">
         <h1 className="text-4xl font-bold">League Setup</h1>
+        <a
+  href="/"
+  className="mt-4 inline-block rounded-lg border border-slate-700 px-4 py-2 text-slate-200 hover:bg-slate-900"
+>
+  ← Back to Home
+</a>
         <p className="mt-3 text-slate-400">
           Create your manager profile and team before the draft starts.
         </p>

@@ -33,6 +33,12 @@ export default function CommissionerPage() {
     <main className="min-h-screen bg-slate-950 px-6 py-10 text-white">
       <div className="mx-auto max-w-xl">
         <h1 className="text-4xl font-bold">Commissioner Controls</h1>
+        <a
+  href="/"
+  className="mt-4 inline-block rounded-lg border border-slate-700 px-4 py-2 text-slate-200 hover:bg-slate-900"
+>
+  ← Back to Home
+</a>
 
         <input
           value={code}
