@@ -38,42 +38,28 @@ export default async function Home() {
     <main className="min-h-screen bg-slate-950 px-6 py-10 text-white">
       <h1 className="text-4xl font-bold">FIFA Fantasy Draft 2026</h1>
       <div className="mt-6 flex flex-wrap gap-4">
-
-<a
-href="/setup"
-className="rounded-lg bg-blue-500 px-4 py-3 font-bold text-white hover:bg-blue-400"
-
->
-
-```
-Team Setup
-```
-
+<div className="mt-6 flex flex-wrap gap-4">
+  <a
+    href="/setup"
+    className="rounded-lg bg-blue-500 px-4 py-3 font-bold text-white hover:bg-blue-400"
+  >
+    Team Setup
   </a>
 
-<a
-href="/draft"
-className="rounded-lg bg-emerald-500 px-4 py-3 font-bold text-slate-950 hover:bg-emerald-400"
-
->
-
-```
-Draft Room
-```
-
+  <a
+    href="/draft"
+    className="rounded-lg bg-emerald-500 px-4 py-3 font-bold text-slate-950 hover:bg-emerald-400"
+  >
+    Draft Room
   </a>
 
-<a
-href="/commissioner"
-className="rounded-lg bg-red-500 px-4 py-3 font-bold text-white hover:bg-red-400"
-
->
-
-```
-Commissioner Controls
-```
-
+  <a
+    href="/commissioner"
+    className="rounded-lg bg-red-500 px-4 py-3 font-bold text-white hover:bg-red-400"
+  >
+    Commissioner Controls
   </a>
+</div>
 
 </div>
 
