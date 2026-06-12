@@ -26,6 +26,14 @@ export default function DraftPage() {
   const [country, setCountry] = useState("all");
   const [position, setPosition] = useState("all");
   const [message, setMessage] = useState("");
+  const [currentPickNumber, setCurrentPickNumber] = useState(1);
+  const [currentTeamId, setCurrentTeamId] = useState<string | null>(null);
+  const [selectedTeamName, setSelectedTeamName] = useState<string | null>(null);
+  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
+
+  const [secondsLeft, setSecondsLeft] = useState(60);
+  const [isAutoPicking, setIsAutoPicking] = useState(false);
+  const [draftStarted, setDraftStarted] = useState(false);
 
   async function loadData() {
     const { data: playerData, error: playerError } = await supabase
@@ -48,94 +56,178 @@ export default function DraftPage() {
       setMessage(teamError.message);
       return;
     }
+    const { data: draftStateData, error: draftStateError } = await supabase
+  .from("draft_state")
+  .select("current_pick_number, draft_started")
+  .eq("id", 1)
+  .single();
+
+if (draftStateError) {
+  setMessage(draftStateError.message);
+  return;
+}
+
+const pickNumber = draftStateData.current_pick_number;
+setCurrentPickNumber(pickNumber);
+setDraftStarted(draftStateData.draft_started);
+
+const { data: currentTeamData, error: currentTeamError } = await supabase.rpc(
+  "team_for_pick",
+  {
+    p_pick_number: pickNumber,
+  }
+);
+
+if (currentTeamError) {
+  setMessage(currentTeamError.message);
+  return;
+}
+
+setCurrentTeamId(currentTeamData);
 
     setPlayers((playerData ?? []) as Player[]);
     setTeams((teamData ?? []) as Team[]);
+}
+
+useEffect(() => {
+  setSecondsLeft(60);
+}, [currentPickNumber]);
+
+useEffect(() => {
+  if (!draftStarted) return;
+
+  if (secondsLeft <= 0) {
+    autoDraftPick();
+    return;
   }
 
-  useEffect(() => {
-    loadData();
+  const timer = setTimeout(() => {
+    setSecondsLeft((prev) => prev - 1);
+  }, 1000);
 
-    const channel = supabase
-      .channel("draft-room")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "players" },
-        () => loadData()
-      )
-      .subscribe();
+  return () => clearTimeout(timer);
+}, [secondsLeft, draftStarted]);
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
+useEffect(() => {
+        loadData();
 
-  const countries = useMemo(() => {
-    return Array.from(new Set(players.map((p) => p.country))).sort();
-  }, [players]);
+        const channel = supabase
+          .channel("draft-room")
+          .on(
+            "postgres_changes",
+            { event: "*", schema: "public", table: "players" },
+            () => loadData()
+          )
+          .subscribe();
 
-  const filteredPlayers = players.filter((player) => {
-    const matchesSearch =
-      player.player_name.toLowerCase().includes(search.toLowerCase()) ||
-      (player.club ?? "").toLowerCase().includes(search.toLowerCase());
+        return () => {
+          supabase.removeChannel(channel);
+        };
+      }, []);
 
-    const matchesCountry = country === "all" || player.country === country;
-    const matchesPosition = position === "all" || player.position === position;
-    const isAvailable = !player.drafted_by_team_id;
+      const countries = useMemo(() => {
+        return Array.from(new Set(players.map((p) => p.country))).sort();
+      }, [players]);
 
-    return matchesSearch && matchesCountry && matchesPosition && isAvailable;
-  });
+      const filteredPlayers = players.filter((player) => {
+        const matchesSearch =
+          player.player_name.toLowerCase().includes(search.toLowerCase()) ||
+          (player.club ?? "").toLowerCase().includes(search.toLowerCase());
 
-  async function draftPlayer(player: Player) {
-    setMessage("");
-const teamId = localStorage.getItem("teamId");
-const teamName = localStorage.getItem("teamName");
+        const matchesCountry = country === "all" || player.country === country;
+        const matchesPosition = position === "all" || player.position === position;
+        const isAvailable = !player.drafted_by_team_id;
 
-if (!teamId || !teamName) {
-  setMessage("No team selected. Select your team before drafting.");
-  return;
-}
+        return matchesSearch && matchesCountry && matchesPosition && isAvailable;
+      });
 
-const confirmed = window.confirm(
-  `Draft ${player.player_name} to ${teamName}?`
+      async function draftPlayer(player: Player) {
+        setMessage("");
+    const teamId = localStorage.getItem("teamId");
+    const teamName = localStorage.getItem("teamName");
+
+    if (!teamId || !teamName) {
+      setMessage("No team selected. Select your team before drafting.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Draft ${player.player_name} to ${teamName}?`
+    );
+
+    if (!confirmed) {
+      setMessage("Draft cancelled.");
+      return;
+    }
+
+    const { data, error } = await supabase.rpc("draft_player", {
+    p_player_id: player.id,
+    p_team_id: teamId,
+    });
+
+    if (error) {
+    setMessage(error.message);
+    return;
+    }
+
+    setMessage(`${player.player_name}: ${data}`);
+
+
+        setMessage(`Drafted ${player.player_name}`);
+        await loadData();
+      }
+
+  function selectTeam(team: Team) {
+     localStorage.setItem("teamId", team.id);
+     localStorage.setItem("teamName", team.team_name);
+       setSelectedTeamId(team.id);
+      setSelectedTeamName(team.team_name);
+      setMessage(`Selected ${team.team_name}`);
+  }
+
+
+async function autoDraftPick() {
+if (isAutoPicking) return;
+
+setIsAutoPicking(true);
+
+const { data, error } = await supabase.rpc(
+"auto_draft_current_pick"
 );
-
-if (!confirmed) {
-  setMessage("Draft cancelled.");
-  return;
-}
-
-const { data, error } = await supabase.rpc("draft_player", {
-p_player_id: player.id,
-p_team_id: teamId,
-});
 
 if (error) {
 setMessage(error.message);
-return;
+} else {
+setMessage(data ?? "Auto-drafted player.");
 }
 
-setMessage(`${player.player_name}: ${data}`);
-
-
-    setMessage(`Drafted ${player.player_name}`);
-    await loadData();
-  }
-
-  function selectTeam(team: Team) {
-    localStorage.setItem("teamId", team.id);
-    localStorage.setItem("teamName", team.team_name);
-    setMessage(`Selected ${team.team_name}`);
-  }
-
-  const selectedTeamName =
-    typeof window !== "undefined" ? localStorage.getItem("teamName") : null;
+setSecondsLeft(60);
+setIsAutoPicking(false);
+await loadData();
+}
 
   return (
     <main className="min-h-screen bg-slate-950 px-6 py-8 text-white">
       <div className="mx-auto max-w-7xl">
         <h1 className="text-4xl font-bold">Draft Room</h1>
+    <div className="mt-4 rounded-lg border border-slate-800 bg-slate-900 p-4">
+      <p className="text-lg font-bold">
+        Pick #{currentPickNumber}
+      </p>
 
+  <p className="text-slate-300">
+    Current Team:{" "}
+    {teams.find((team) => team.id === currentTeamId)?.team_name ?? "Loading..."}
+  </p>
+
+  <p className="text-emerald-400">
+  Status: {draftStarted ? "Draft Active" : "Waiting for commissioner"}
+</p>
+
+<p className="text-emerald-400">
+  Timer: {draftStarted ? `${secondsLeft}s` : "Not started"}
+</p>
+</div>
         <p className="mt-2 text-slate-400">
           Selected team:{" "}
           <span className="font-semibold text-emerald-400">
@@ -233,11 +325,18 @@ setMessage(`${player.player_name}: ${data}`);
                         </td>
                         <td className="px-4 py-3">
                           <button
-                            onClick={() => draftPlayer(player)}
-                            className="rounded-lg bg-emerald-500 px-3 py-2 font-bold text-slate-950 hover:bg-emerald-400"
-                          >
-                            Draft
-                          </button>
+                           onClick={() => draftPlayer(player)}
+                          disabled={localStorage.getItem("teamId") !== currentTeamId}
+                          className={`rounded-lg px-3 py-2 font-bold ${
+                          selectedTeamId === currentTeamId
+                          ? "bg-emerald-500"
+                        : "bg-gray-500 cursor-not-allowed"
+                    }`}
+                        >
+                        {selectedTeamId === currentTeamId
+                          ? "Draft"
+                          : "Not Your Turn"}
+                        </button>
                         </td>
                       </tr>
                     ))}
